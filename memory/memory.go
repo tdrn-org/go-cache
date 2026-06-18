@@ -1,5 +1,5 @@
 /*
- * Copyright 2025-2026 Holger de Carne
+ * Copyright 2026 Holger de Carne
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// Package memory provides memory based implementation for the
+// different cache types.
 package memory
 
 import (
@@ -25,6 +27,7 @@ import (
 	"github.com/tdrn-org/go-cache"
 )
 
+// Memory cache name
 const Name cache.Name = "memory"
 
 type memoryKeyValue[K comparable, V any] struct {
@@ -32,6 +35,9 @@ type memoryKeyValue[K comparable, V any] struct {
 	load  cache.LoadFunc[K, V]
 }
 
+// NewKeyValue creates a new [cache.KeyValue] cache.
+// Parameters size and ttl define the evict strategy for the cache.
+// Putting both to 0 disables cache evicting.
 func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.LoadFunc[K, V]) (cache.KeyValue[K, V], error) {
 	options := &otter.Options[K, V]{
 		MaximumSize:      size,
@@ -44,15 +50,18 @@ func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.Lo
 	return &memoryKeyValue[K, V]{cache: cache, load: load}, nil
 }
 
+// [cache.KeyValue.Get] implementation
 func (kv *memoryKeyValue[K, V]) Get(ctx context.Context, key K) (V, bool) {
 	value, err := kv.cache.Get(ctx, key, otter.LoaderFunc[K, V](kv.load))
 	return value, err == nil
 }
 
+// [cache.KeyValue.Put] implementation
 func (kv *memoryKeyValue[K, V]) Put(ctx context.Context, key K, value V) {
 	kv.cache.Set(key, value)
 }
 
+// [cache.KeyValue.Close] implementation
 func (kv *memoryKeyValue[K, V]) Close() error {
 	return nil
 }

@@ -1,21 +1,11 @@
-/*
- * Copyright 2026 Holger de Carne
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+//
+// Copyright (C) 2026 Holger de Carne
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
 
-// Package cache provides differnt cache type (e.g. Key/Value) with
-// plugable backends.
+// Package cache provides different cache type (e.g. Key/Value) with
+// pluggable backends.
 package cache
 
 import (
@@ -52,9 +42,8 @@ func NotFound[K comparable, V any](value V) LoadFunc[K, V] {
 // to retrieve a cached value for a key.
 type Cache[K comparable, V any] interface {
 	// Get gets the cached value for the given key.
-	// 2nd argument indicates whether the value
-	// was found (hit) or not (no-hit).
-	Get(ctx context.Context, key K) (V, bool)
+	// Error ErrNotFound indicates a cache miss.
+	Get(ctx context.Context, key K) (V, error)
 }
 
 // NoCache provides a cache implementation
@@ -65,7 +54,7 @@ type NoCache[K comparable, V any] struct {
 	Found bool
 }
 
-// Get imlements [Cache.Get].
+// Get implements [Cache.Get].
 func (c *NoCache[K, V]) Get(ctx context.Context, key K) (V, bool) {
 	return c.Value, c.Found
 }

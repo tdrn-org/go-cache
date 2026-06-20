@@ -31,7 +31,7 @@ type memoryKeyValue[K comparable, V any] struct {
 func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.LoadFunc[K, V]) (cache.KeyValue[K, V], error) {
 	var expiryCalculator otter.ExpiryCalculator[K, V]
 	if ttl > 0 {
-		expiryCalculator = otter.ExpiryCreating[K, V](ttl)
+		expiryCalculator = otter.ExpiryAccessing[K, V](ttl)
 	}
 	options := &otter.Options[K, V]{
 		MaximumSize:      size,

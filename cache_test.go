@@ -34,5 +34,6 @@ func runKeyValueTest(t *testing.T, kv cache.KeyValue[string, string]) {
 		value, err := kv.Get(t.Context(), key)
 		require.NoError(t, err)
 		require.Equal(t, key, value)
+		kv.Delete(t.Context(), key)
 	}
 }

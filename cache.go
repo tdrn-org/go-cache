@@ -66,5 +66,7 @@ type KeyValue[K comparable, V any] interface {
 	// Any previously established key-value association
 	// is overwritten.
 	Put(ctx context.Context, key K, value V)
+	// Delete removes the given key from the cache.
+	Delete(ctx context.Context, key K)
 	io.Closer
 }

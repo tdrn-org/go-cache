@@ -55,6 +55,11 @@ func (kv *memoryKeyValue[K, V]) Put(ctx context.Context, key K, value V) {
 	kv.cache.Set(key, value)
 }
 
+// [cache.KeyValue.Delete] implementation
+func (kv *memoryKeyValue[K, V]) Delete(ctx context.Context, key K) {
+	kv.cache.Invalidate(key)
+}
+
 // [cache.KeyValue.Close] implementation
 func (kv *memoryKeyValue[K, V]) Close() error {
 	return nil

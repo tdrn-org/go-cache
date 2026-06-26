@@ -27,11 +27,15 @@ type memoryKeyValue[K comparable, V any] struct {
 
 // NewKeyValue creates a new [cache.KeyValue] cache.
 // Parameters size and ttl define the evict strategy for the cache.
+// A positive ttl defines an access ttl (entry is discarded ttl after last access).
+// A negative ttl defines a created ttl (entry is discarded ttl after creation).
 // Putting both to 0 disables cache evicting.
 func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.LoadFunc[K, V]) (cache.KeyValue[K, V], error) {
 	var expiryCalculator otter.ExpiryCalculator[K, V]
 	if ttl > 0 {
 		expiryCalculator = otter.ExpiryAccessing[K, V](ttl)
+	} else if ttl < 0 {
+		expiryCalculator = otter.ExpiryCreating[K, V](-ttl)
 	}
 	options := &otter.Options[K, V]{
 		MaximumSize:      size,

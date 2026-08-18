@@ -8,16 +8,36 @@ package cache_test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	redisclient "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/tdrn-org/go-cache"
 	"github.com/tdrn-org/go-cache/memory"
+	"github.com/tdrn-org/go-cache/redis"
 )
 
 func TestMemoryKeyValue(t *testing.T) {
-	kv, err := memory.NewKeyValue(0, time.Second, cache.NotFound[string](""))
+	kv, err := memory.NewKeyValue(0, time.Second, cache.NotFound[string, string]())
+	require.NoError(t, err)
+
+	runKeyValueTest(t, kv)
+
+	err = kv.Close()
+	require.NoError(t, err)
+}
+
+func TestRedisKeyValue(t *testing.T) {
+	options := redisclient.Options{
+		Addr: os.Getenv("REDIS_ADDR"),
+	}
+	if options.Addr == "" {
+		t.Skip("No Redis Addr set; skipping tests")
+	}
+
+	kv, err := redis.NewKeyValue(&options, 0, redis.StringKey, cache.StringSerializer())
 	require.NoError(t, err)
 
 	runKeyValueTest(t, kv)

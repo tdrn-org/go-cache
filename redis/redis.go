@@ -60,7 +60,16 @@ func NewKeyValue[K any, V any](options *redis.Options, ttl time.Duration, keyFun
 
 // [cache.KeyValue.Get] implementation
 func (kv *redisKeyValue[K, V]) Get(ctx context.Context, key K) (V, error) {
-	encodedValue, err := kv.rdb.Get(ctx, kv.keyFunc(key)).Bytes()
+	keyString := kv.keyFunc(key)
+	var encodedValue []byte
+	var err error
+	if kv.ttl > 0 {
+		// A positive ttl defines an access ttl: refresh the entry's expiry
+		// on every read, so it is discarded ttl after last access.
+		encodedValue, err = kv.rdb.GetEx(ctx, keyString, kv.ttl).Bytes()
+	} else {
+		encodedValue, err = kv.rdb.Get(ctx, keyString).Bytes()
+	}
 	if errors.Is(err, redis.Nil) {
 		return kv.noValue, cache.ErrNotFound
 	} else if err != nil {

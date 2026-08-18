@@ -46,6 +46,37 @@ func TestRedisKeyValue(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestRedisAccessTTL(t *testing.T) {
+	options := redisclient.Options{
+		Addr: os.Getenv("REDIS_ADDR"),
+	}
+	if options.Addr == "" {
+		t.Skip("No Redis Addr set; skipping tests")
+	}
+
+	const ttl = 500 * time.Millisecond
+	kv, err := redis.NewKeyValue(&options, ttl, redis.StringKey, cache.StringSerializer())
+	require.NoError(t, err)
+	defer kv.Close()
+
+	ctx := t.Context()
+	kv.Put(ctx, "access-ttl", "access-ttl")
+
+	// A positive ttl is an access ttl: every read refreshes the expiry, so the
+	// entry must survive well beyond ttl as long as it keeps being accessed.
+	for range 4 {
+		time.Sleep(ttl / 2)
+		value, err := kv.Get(ctx, "access-ttl")
+		require.NoError(t, err)
+		require.Equal(t, "access-ttl", value)
+	}
+
+	// Once it is no longer accessed, the entry must be discarded after ttl.
+	time.Sleep(ttl + 100*time.Millisecond)
+	_, err = kv.Get(ctx, "access-ttl")
+	require.ErrorIs(t, err, cache.ErrNotFound)
+}
+
 func runKeyValueTest(t *testing.T, kv cache.KeyValue[string, string]) {
 	const count = 1000
 	for keyValue := range count {

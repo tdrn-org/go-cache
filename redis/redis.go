@@ -40,13 +40,15 @@ type redisKeyValue[K any, V any] struct {
 	logger     *slog.Logger
 }
 
+type Options = redis.Options
+
 // NewKeyValue creates a new [cache.KeyValue] cache.
 // Parameter options defines the Redis client options. Parameter ttl defines the
 // evict strategy for the cache.
 // A positive ttl defines an access ttl (entry is discarded ttl after last access).
 // A negative ttl defines a created ttl (entry is discarded ttl after creation).
 // Putting both to 0 disables cache evicting.
-func NewKeyValue[K any, V any](options *redis.Options, ttl time.Duration, keyFunc KeyFunc[K], serializer cache.Serializer[V]) (cache.KeyValue[K, V], error) {
+func NewKeyValue[K any, V any](options *Options, ttl time.Duration, keyFunc KeyFunc[K], serializer cache.Serializer[V]) (cache.KeyValue[K, V], error) {
 	rdb := redis.NewClient(options)
 	kv := &redisKeyValue[K, V]{
 		rdb:        rdb,

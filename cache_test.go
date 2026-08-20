@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	redisclient "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/tdrn-org/go-cache"
 	"github.com/tdrn-org/go-cache/memory"
@@ -30,7 +29,7 @@ func TestMemoryKeyValue(t *testing.T) {
 }
 
 func TestRedisKeyValue(t *testing.T) {
-	options := redisclient.Options{
+	options := redis.Options{
 		Addr: os.Getenv("REDIS_ADDR"),
 	}
 	if options.Addr == "" {
@@ -47,7 +46,7 @@ func TestRedisKeyValue(t *testing.T) {
 }
 
 func TestRedisAccessTTL(t *testing.T) {
-	options := redisclient.Options{
+	options := redis.Options{
 		Addr: os.Getenv("REDIS_ADDR"),
 	}
 	if options.Addr == "" {

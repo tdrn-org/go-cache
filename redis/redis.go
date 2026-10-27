@@ -60,6 +60,15 @@ func NewKeyValue[K any, V any](options *Options, ttl time.Duration, keyFunc KeyF
 	return kv, nil
 }
 
+// MustNewKeyValue is like [NewKeyValue] but panics in case of an error.
+func MustNewKeyValue[K any, V any](options *Options, ttl time.Duration, keyFunc KeyFunc[K], serializer cache.Serializer[V]) cache.KeyValue[K, V] {
+	kv, err := NewKeyValue(options, ttl, keyFunc, serializer)
+	if err != nil {
+		panic(err)
+	}
+	return kv
+}
+
 // [cache.KeyValue.Get] implementation
 func (kv *redisKeyValue[K, V]) Get(ctx context.Context, key K) (V, error) {
 	keyString := kv.keyFunc(key)

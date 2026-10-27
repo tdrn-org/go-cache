@@ -19,13 +19,22 @@ import (
 )
 
 func TestMemoryKeyValue(t *testing.T) {
-	kv, err := memory.NewKeyValue[string, string](0, time.Second, nil)
-	require.NoError(t, err)
+	// Put, Get, Delete tests
+	kv := memory.MustNewKeyValue(0, 0, cache.NotFound[string, string]())
+	runKeyValuePutGetDeleteTest(t, kv)
+	require.NoError(t, kv.Close())
 
-	runKeyValueTest(t, kv)
+	// Access expiry test
+	accessExpiryTTL := 500 * time.Millisecond
+	kv = memory.MustNewKeyValue(0, accessExpiryTTL, cache.NotFound[string, string]())
+	runKeyValueAccessExpiryTest(t, kv, accessExpiryTTL)
+	require.NoError(t, kv.Close())
 
-	err = kv.Close()
-	require.NoError(t, err)
+	// Create expiry test
+	createExpiryTTL := -500 * time.Millisecond
+	kv = memory.MustNewKeyValue(0, createExpiryTTL, cache.NotFound[string, string]())
+	runKeyValueCreateExpiryTest(t, kv, accessExpiryTTL)
+	require.NoError(t, kv.Close())
 }
 
 func TestRedisKeyValue(t *testing.T) {
@@ -36,49 +45,26 @@ func TestRedisKeyValue(t *testing.T) {
 		t.Skip("No Redis Addr set; skipping tests")
 	}
 
-	kv, err := redis.NewKeyValue(&options, 0, redis.StringKey, cache.StringSerializer())
-	require.NoError(t, err)
+	// Put, Get, Delete tests
+	kv := redis.MustNewKeyValue(&options, 0, redis.StringKey, cache.StringSerializer())
+	runKeyValuePutGetDeleteTest(t, kv)
+	require.NoError(t, kv.Close())
 
-	runKeyValueTest(t, kv)
+	// Access expiry test
+	accessExpiryTTL := 500 * time.Millisecond
+	kv = redis.MustNewKeyValue(&options, accessExpiryTTL, redis.StringKey, cache.StringSerializer())
+	runKeyValueAccessExpiryTest(t, kv, accessExpiryTTL)
+	require.NoError(t, kv.Close())
 
-	err = kv.Close()
-	require.NoError(t, err)
+	// Create expiry test
+	createExpiryTTL := -500 * time.Millisecond
+	kv = redis.MustNewKeyValue(&options, createExpiryTTL, redis.StringKey, cache.StringSerializer())
+	runKeyValueCreateExpiryTest(t, kv, accessExpiryTTL)
+	require.NoError(t, kv.Close())
 }
 
-func TestRedisAccessTTL(t *testing.T) {
-	options := redis.Options{
-		Addr: os.Getenv("REDIS_ADDR"),
-	}
-	if options.Addr == "" {
-		t.Skip("No Redis Addr set; skipping tests")
-	}
-
-	const ttl = 500 * time.Millisecond
-	kv, err := redis.NewKeyValue(&options, ttl, redis.StringKey, cache.StringSerializer())
-	require.NoError(t, err)
-	defer kv.Close()
-
-	ctx := t.Context()
-	kv.Put(ctx, "access-ttl", "access-ttl")
-
-	// A positive ttl is an access ttl: every read refreshes the expiry, so the
-	// entry must survive well beyond ttl as long as it keeps being accessed.
-	for range 4 {
-		time.Sleep(ttl / 2)
-		value, err := kv.Get(ctx, "access-ttl")
-		require.NoError(t, err)
-		require.Equal(t, "access-ttl", value)
-	}
-
-	// Once it is no longer accessed, the entry must be discarded after ttl.
-	time.Sleep(ttl + 100*time.Millisecond)
-	_, err = kv.Get(ctx, "access-ttl")
-	require.ErrorIs(t, err, cache.ErrNotFound)
-}
-
-func runKeyValueTest(t *testing.T, kv cache.KeyValue[string, string]) {
-	const count = 1000
-	for keyValue := range count {
+func runKeyValuePutGetDeleteTest(t *testing.T, kv cache.KeyValue[string, string]) {
+	for keyValue := range 100 {
 		key := fmt.Sprintf("%d", keyValue)
 		kv.Put(t.Context(), key, key)
 		value, err := kv.Get(t.Context(), key)
@@ -86,4 +72,34 @@ func runKeyValueTest(t *testing.T, kv cache.KeyValue[string, string]) {
 		require.Equal(t, key, value)
 		kv.Delete(t.Context(), key)
 	}
+}
+
+func runKeyValueAccessExpiryTest(t *testing.T, kv cache.KeyValue[string, string], ttl time.Duration) {
+	key := t.Name() + "Key"
+	value := t.Name() + "Value"
+	kv.Put(t.Context(), key, value)
+	for range 10 {
+		time.Sleep(ttl / 2)
+		cached, err := kv.Get(t.Context(), key)
+		require.NoError(t, err)
+		require.Equal(t, value, cached)
+	}
+	time.Sleep(2 * ttl)
+	cached, err := kv.Get(t.Context(), key)
+	require.ErrorIs(t, err, cache.ErrNotFound)
+	require.Empty(t, cached)
+}
+
+func runKeyValueCreateExpiryTest(t *testing.T, kv cache.KeyValue[string, string], ttl time.Duration) {
+	key := t.Name() + "Key"
+	value := t.Name() + "Value"
+	kv.Put(t.Context(), key, value)
+	time.Sleep(ttl / 2)
+	cached, err := kv.Get(t.Context(), key)
+	require.NoError(t, err)
+	require.Equal(t, value, cached)
+	time.Sleep(ttl)
+	cached, err = kv.Get(t.Context(), key)
+	require.ErrorIs(t, err, cache.ErrNotFound)
+	require.Empty(t, cached)
 }

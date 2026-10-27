@@ -23,9 +23,8 @@ func mapErrNotFound[V any](value V, err error) (V, error) {
 }
 
 func mapHit[V any](value V, hit bool) (V, error) {
-	var err error
-	if hit {
-		err = cache.ErrNotFound
+	if !hit {
+		return value, cache.ErrNotFound
 	}
-	return value, err
+	return value, nil
 }

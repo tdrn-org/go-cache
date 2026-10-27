@@ -50,6 +50,15 @@ func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.Lo
 	return &memoryKeyValue[K, V]{cache: cache, loader: loaderFunc(load)}, nil
 }
 
+// MustNewKeyValue is like [NewKeyValue] but panics in case of an error.
+func MustNewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.LoadFunc[K, V]) cache.KeyValue[K, V] {
+	kv, err := NewKeyValue(size, ttl, load)
+	if err != nil {
+		panic(err)
+	}
+	return kv
+}
+
 // [cache.KeyValue.Get] implementation
 func (kv *memoryKeyValue[K, V]) Get(ctx context.Context, key K) (V, error) {
 	if kv.loader != nil {
@@ -60,6 +69,9 @@ func (kv *memoryKeyValue[K, V]) Get(ctx context.Context, key K) (V, error) {
 }
 
 func loaderFunc[K comparable, V any](load cache.LoadFunc[K, V]) otter.LoaderFunc[K, V] {
+	if load == nil {
+		return nil
+	}
 	return otter.LoaderFunc[K, V](func(ctx context.Context, key K) (V, error) {
 		return mapErrNotFound(load(ctx, key))
 	})

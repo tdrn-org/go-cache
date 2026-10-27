@@ -7,6 +7,7 @@
 package cache_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -22,6 +23,11 @@ func TestMemoryKeyValue(t *testing.T) {
 	// Put, Get, Delete tests
 	kv := memory.MustNewKeyValue(0, 0, cache.NotFound[string, string]())
 	runKeyValuePutGetDeleteTest(t, kv)
+	require.NoError(t, kv.Close())
+
+	// Load, Get, Delete tests
+	kv = memory.MustNewKeyValue(0, 0, func(_ context.Context, key string) (string, error) { return key, nil })
+	runKeyValueGetLoadTest(t, kv)
 	require.NoError(t, kv.Close())
 
 	// Access expiry test
@@ -71,6 +77,15 @@ func runKeyValuePutGetDeleteTest(t *testing.T, kv cache.KeyValue[string, string]
 		require.NoError(t, err)
 		require.Equal(t, key, value)
 		kv.Delete(t.Context(), key)
+	}
+}
+
+func runKeyValueGetLoadTest(t *testing.T, kv cache.KeyValue[string, string]) {
+	for keyValue := range 100 {
+		key := fmt.Sprintf("%d", keyValue)
+		value, err := kv.Get(t.Context(), key)
+		require.NoError(t, err)
+		require.Equal(t, key, value)
 	}
 }
 

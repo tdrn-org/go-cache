@@ -21,8 +21,8 @@ import (
 const Name cache.Name = "memory"
 
 type memoryKeyValue[K comparable, V any] struct {
-	cache *otter.Cache[K, V]
-	load  cache.LoadFunc[K, V]
+	cache  *otter.Cache[K, V]
+	loader otter.LoaderFunc[K, V]
 }
 
 // NewKeyValue creates a new [cache.KeyValue] cache.
@@ -30,6 +30,8 @@ type memoryKeyValue[K comparable, V any] struct {
 // A positive ttl defines an access ttl (entry is discarded ttl after last access).
 // A negative ttl defines a created ttl (entry is discarded ttl after creation).
 // Putting both to 0 disables cache evicting.
+// If non-nil, the given [cache.LoadFunc] is used to load the requested
+// value on-demand.
 func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.LoadFunc[K, V]) (cache.KeyValue[K, V], error) {
 	var expiryCalculator otter.ExpiryCalculator[K, V]
 	if ttl > 0 {
@@ -45,31 +47,22 @@ func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.Lo
 	if err != nil {
 		return nil, fmt.Errorf("failed to create memory cache (cause: %w)", err)
 	}
-	return &memoryKeyValue[K, V]{cache: cache, load: load}, nil
+	return &memoryKeyValue[K, V]{cache: cache, loader: loaderFunc(load)}, nil
 }
 
 // [cache.KeyValue.Get] implementation
 func (kv *memoryKeyValue[K, V]) Get(ctx context.Context, key K) (V, error) {
-	value, err := kv.cache.Get(ctx, key, kv.loader())
-	return value, mapErrNotFound(err)
-}
-
-func (kv *memoryKeyValue[K, V]) loader() otter.LoaderFunc[K, V] {
-	return otter.LoaderFunc[K, V](func(ctx context.Context, key K) (V, error) {
-		value, err := kv.load(ctx, key)
-		return value, mapErrNotFound(err)
-	})
-}
-
-func mapErrNotFound(err error) error {
-	switch err {
-	case cache.ErrNotFound:
-		return otter.ErrNotFound
-	case otter.ErrNotFound:
-		return cache.ErrNotFound
-	default:
-		return err
+	if kv.loader != nil {
+		return mapErrNotFound(kv.cache.Get(ctx, key, kv.loader))
+	} else {
+		return mapHit(kv.cache.GetIfPresent(key))
 	}
+}
+
+func loaderFunc[K comparable, V any](load cache.LoadFunc[K, V]) otter.LoaderFunc[K, V] {
+	return otter.LoaderFunc[K, V](func(ctx context.Context, key K) (V, error) {
+		return mapErrNotFound(load(ctx, key))
+	})
 }
 
 // [cache.KeyValue.Put] implementation

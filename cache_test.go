@@ -19,7 +19,7 @@ import (
 )
 
 func TestMemoryKeyValue(t *testing.T) {
-	kv, err := memory.NewKeyValue(0, time.Second, cache.NotFound[string, string]())
+	kv, err := memory.NewKeyValue[string, string](0, time.Second, nil)
 	require.NoError(t, err)
 
 	runKeyValueTest(t, kv)

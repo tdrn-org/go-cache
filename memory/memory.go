@@ -51,17 +51,25 @@ func NewKeyValue[K comparable, V any](size int, ttl time.Duration, load cache.Lo
 // [cache.KeyValue.Get] implementation
 func (kv *memoryKeyValue[K, V]) Get(ctx context.Context, key K) (V, error) {
 	value, err := kv.cache.Get(ctx, key, kv.loader())
-	return value, err
+	return value, mapErrNotFound(err)
 }
 
 func (kv *memoryKeyValue[K, V]) loader() otter.LoaderFunc[K, V] {
 	return otter.LoaderFunc[K, V](func(ctx context.Context, key K) (V, error) {
 		value, err := kv.load(ctx, key)
-		if err == cache.ErrNotFound {
-			return value, otter.ErrNotFound
-		}
-		return value, err
+		return value, mapErrNotFound(err)
 	})
+}
+
+func mapErrNotFound(err error) error {
+	switch err {
+	case cache.ErrNotFound:
+		return otter.ErrNotFound
+	case otter.ErrNotFound:
+		return cache.ErrNotFound
+	default:
+		return err
+	}
 }
 
 // [cache.KeyValue.Put] implementation

@@ -39,12 +39,12 @@ type Cache[K any, V any] interface {
 // This is suitable for test scenarios or to disable caching.
 type NoCache[K any, V any] struct {
 	Value V
-	Found bool
+	Err   error
 }
 
 // Get implements [Cache.Get].
-func (c *NoCache[K, V]) Get(ctx context.Context, key K) (V, bool) {
-	return c.Value, c.Found
+func (c *NoCache[K, V]) Get(ctx context.Context, key K) (V, error) {
+	return c.Value, c.Err
 }
 
 // KeyValue defines the key-value cache type.
